@@ -127,48 +127,39 @@ function getSlipFolder() {
    Save Slip
 ========================= */
 
-function saveSlip(
-  base64,
-  mimeType,
-  fileName,
-  orderTimestamp
-) {
+function saveSlip(base64, mimeType, fileName, orderId) {
 
-  if (!base64) return "";
-
+  if (!base64) {
+    return "";
+  }
 
   try {
 
+    const bytes = Utilities.base64Decode(base64);
+
     const blob = Utilities.newBlob(
-
-      Utilities.base64Decode(base64),
-
+      bytes,
       mimeType || "image/jpeg",
-
-      (orderTimestamp || Date.now())
-        + "_"
-        + (fileName || "slip.jpg")
-
+      (orderId || Date.now()) + "_" + (fileName || "slip.jpg")
     );
 
+    const folder = DriveApp.getFolderById(SLIP_FOLDER_ID);
 
-    const file =
-      getSlipFolder().createFile(blob);
-
+    const file = folder.createFile(blob);
 
     file.setSharing(
       DriveApp.Access.ANYONE_WITH_LINK,
       DriveApp.Permission.VIEW
     );
 
-
     return file.getUrl();
 
+  } catch (error) {
 
-  } catch (err) {
+    console.error("SLIP ERROR:", error);
 
     return "อัปโหลดสลิปไม่สำเร็จ: "
-      + err.message;
+    + err.message;
 
   }
 }
@@ -220,31 +211,32 @@ function doPost(e) {
       data.slipBase64,
       data.slipMimeType,
       data.slipFileName,
-      data.timestamp
+      data.orderId
     );
-    const slipLink = data.slipUrl
-  ? `=HYPERLINK("${slipUrl}","ดูสลิป")`
-  : "";
+    
+    let slipLink = "";
+    
+    if (slipUrl) {
+      slipLink = `=HYPERLINK("${slipUrl}","ดูสลิป")`;
+    }
 
 
     /* ---------- เพิ่ม Order ---------- */
 
-    sheet.appendRow([
-      data.timestamp || new Date().toISOString(),
-    
-      data.orderId || "",
-    
-      data.name || "",
-      data.phone || "",
-      data.fbName || "",
-      data.address || "",
-      data.items || "",
-      data.paymentMethod || "",
-      Number(data.codFee) || 0,
-      Number(data.total) || 0,
-      data.note || "",
-      slipLink
-    ]);
+      sheet.appendRow([
+        data.timestamp || new Date().toISOString(),
+        data.orderId || "",
+        data.name || "",
+        data.phone || "",
+        data.fbName || "",
+        data.address || "",
+        data.items || "",
+        data.paymentMethod || "",
+        Number(data.codFee) || 0,
+        Number(data.total) || 0,
+        data.note || "",
+        slipLink
+      ]);
 
     SpreadsheetApp.flush();
 
