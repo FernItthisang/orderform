@@ -28,6 +28,7 @@ const SPREADSHEET_ID = "1btwZ20ygLfLmpCcCeYIzD6PWWiaZ-I0ln5gWiNoqDWM";
 
 const SHEET_HEADERS = [
   "Timestamp",
+  "รหัสอ้างอิง",
   "ชื่อลูกค้า",
   "เบอร์โทร",
   "ชื่อ Facebook",
@@ -39,7 +40,6 @@ const SHEET_HEADERS = [
   "หมายเหตุ",
   "สลิปโอนเงิน"
 ];
-
 
 /* =========================
    วันที่ประเทศไทย
@@ -178,6 +178,24 @@ function saveSlip(
    RECEIVE ORDER
 ========================= */
 
+function generateOrderId(sheet) {
+
+  const datePart = Utilities.formatDate(
+    new Date(),
+    "Asia/Bangkok",
+    "yyMMdd"
+  );
+
+  // แถว 1 = header
+  // ดังนั้น order แรกจะเป็น 0001
+  const orderNumber = Math.max(1, sheet.getLastRow());
+
+  const runningNumber =
+    String(orderNumber).padStart(4, "0");
+
+  return "JB" + datePart + "-" + runningNumber;
+}
+
 function doPost(e) {
 
   try {
@@ -192,52 +210,41 @@ function doPost(e) {
 
     const sheet =
       getDailySheet();
+    const orderId = generateOrderId(sheet);
+  
 
 
     /* ---------- Upload Slip ---------- */
 
     const slipUrl = saveSlip(
-
       data.slipBase64,
-
       data.slipMimeType,
-
       data.slipFileName,
-
       data.timestamp
-
     );
+    const slipLink = data.slipUrl
+  ? `=HYPERLINK("${slipUrl}","ดูสลิป")`
+  : "";
 
 
     /* ---------- เพิ่ม Order ---------- */
 
     sheet.appendRow([
-
-      data.timestamp ||
-        new Date().toISOString(),
-
+      data.timestamp || new Date().toISOString(),
+    
+      data.orderId || "",
+    
       data.name || "",
-
       data.phone || "",
-
       data.fbName || "",
-
       data.address || "",
-
       data.items || "",
-
       data.paymentMethod || "",
-
       Number(data.codFee) || 0,
-
       Number(data.total) || 0,
-
       data.note || "",
-
-      slipUrl
-
+      slipLink
     ]);
-
 
     SpreadsheetApp.flush();
 
@@ -295,8 +302,12 @@ function doPost(e) {
 function doGet() {
 
   return ContentService
-    .createTextOutput(
-      "JBS Bakery order backend is running."
-    );
-
+  .createTextOutput(
+    JSON.stringify({
+      status: "ok",
+      orderId: orderId,
+      sheet: sheet.getName()
+    })
+  )
+  .setMimeType(ContentService.MimeType.JSON);
 }

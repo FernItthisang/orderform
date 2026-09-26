@@ -526,6 +526,19 @@ function compressImage(file, maxWidth, quality){
 }
 
 /* ---------- Submit to Google Sheets via Apps Script ---------- */
+
+function generateOrderId() {
+  const now = new Date();
+
+  const date = now.toLocaleDateString("en-CA", {
+    timeZone: "Asia/Bangkok"
+  }).replaceAll("-", "").slice(2);
+
+  const random = Math.floor(1000 + Math.random() * 9000);
+
+  return `JB${date}-${random}`;
+}
+
 function submitOrder(){
   if(!paymentMethod){
     alert("กรุณาเลือกวิธีชำระเงิน");
@@ -540,30 +553,68 @@ function submitOrder(){
   btn.disabled = true;
   btn.textContent = "กำลังส่งออเดอร์...";
 
-  const payload = {
-    timestamp: new Date().toISOString(),
-    name: document.getElementById("inputName").value.trim(),
-    phone: document.getElementById("inputPhone").value.trim(),
-    fbName: document.getElementById("inputFb").value.trim(),
-    address: document.getElementById("inputAddress").value.trim(),
-    note: document.getElementById("inputNote").value.trim(),
-    items: cartArray().map(it => `${it.name}${it.flavor ? " ("+it.flavor+")" : ""} x${it.qty}`).join(", "),
-    paymentMethod: paymentMethod === "cod" ? "เก็บเงินปลายทาง" : "โอนเงิน",
-    itemsTotal: cartTotal(),
-    codFee: paymentMethod === "cod" ? COD_FEE : 0,
-    total: grandTotal(),
-    slipBase64: paymentMethod === "transfer" ? slipData.base64 : "",
-    slipMimeType: paymentMethod === "transfer" ? slipData.mimeType : "",
-    slipFileName: paymentMethod === "transfer" ? slipData.fileName : ""
-  };
+  const orderId = generateOrderId();
 
-  fetch(SCRIPT_URL, {
+const payload = {
+  orderId: orderId,
+
+  timestamp: new Date().toISOString(),
+
+  name: document.getElementById("inputName").value.trim(),
+
+  phone: document.getElementById("inputPhone").value.trim(),
+
+  fbName: document.getElementById("inputFb").value.trim(),
+
+  address: document.getElementById("inputAddress").value.trim(),
+
+  note: document.getElementById("inputNote").value.trim(),
+
+  items: cartArray()
+    .map(it =>
+      `${it.name}${it.flavor ? " (" + it.flavor + ")" : ""} x${it.qty}`
+    )
+    .join(", "),
+
+  paymentMethod:
+    paymentMethod === "cod"
+      ? "เก็บเงินปลายทาง"
+      : "โอนเงิน",
+
+  itemsTotal: cartTotal(),
+
+  codFee:
+    paymentMethod === "cod"
+      ? COD_FEE
+      : 0,
+
+  total: grandTotal(),
+
+  slipBase64:
+    paymentMethod === "transfer"
+      ? slipData.base64
+      : "",
+
+  slipMimeType:
+    paymentMethod === "transfer"
+      ? slipData.mimeType
+      : "",
+
+  slipFileName:
+    paymentMethod === "transfer"
+      ? slipData.fileName
+      : ""
+};
+
+fetch(SCRIPT_URL, {
     method: "POST",
     mode: "no-cors", // Apps Script เว็บแอปไม่ส่ง CORS header กลับมา จึงอ่าน response ตรงๆไม่ได้
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(payload)
   })
-  .then(()=>{ showSuccess(); })
+  .then(()=>{
+  showSuccess(orderId);
+})
   .catch(()=>{
     // no-cors ทำให้ fetch แทบไม่ reject จาก network ปกติ แต่กันไว้เผื่อเน็ตหลุด
     updateConfirmState();
@@ -571,12 +622,16 @@ function submitOrder(){
   });
 }
 
-function showSuccess(){
-  document.getElementById("orderRef").textContent = "รหัสอ้างอิง: " + Date.now().toString().slice(-8);
+function showSuccess(orderId){
+  document.getElementById("orderRef").textContent =
+    "รหัสอ้างอิง: " + orderId;
+
   openPanel("success");
+
   cart = {};
   slipData = null;
   paymentMethod = null;
+
   renderCartBar();
 }
 
