@@ -185,39 +185,137 @@ function getSlipFolder() {
 function saveSlip(base64, mimeType, fileName, orderId) {
 
   if (!base64) {
-    return null;
+    return "";
   }
+
+  const bytes = Utilities.base64Decode(base64);
+
+  const blob = Utilities.newBlob(
+    bytes,
+    mimeType || "image/jpeg",
+    (orderId || Date.now()) + "_" + (fileName || "slip.jpg")
+  );
+
+  const folder = DriveApp.getFolderById(SLIP_FOLDER_ID);
+
+  const file = folder.createFile(blob);
+
+  // ส่ง URL ของไฟล์กลับไป
+  return file.getUrl();
+}
+
+
+function doPost(e) {
 
   try {
 
-    const bytes =
-      Utilities.base64Decode(base64);
+    const data = JSON.parse(e.postData.contents);
 
-    const blob =
-      Utilities.newBlob(
-        bytes,
-        mimeType || "image/jpeg",
-        (orderId || Date.now()) +
-        "_" +
-        (fileName || "slip.jpg")
-      );
+    const sheet = getDailySheet();
 
-    const folder =
-      DriveApp.getFolderById(SLIP_FOLDER_ID);
+    const orderId =
+      data.orderId || generateOrderId(sheet);
 
-    const file =
-      folder.createFile(blob);
 
-    return {
-      id: file.getId(),
-      url: file.getUrl()
-    };
+    // =========================
+    // UPLOAD SLIP
+    // =========================
+
+    let slipUrl = "";
+
+    if (data.slipBase64) {
+
+      try {
+
+        slipUrl = saveSlip(
+          data.slipBase64,
+          data.slipMimeType,
+          data.slipFileName,
+          orderId
+        );
+
+      } catch (slipError) {
+
+        console.error("SLIP ERROR:", slipError);
+
+        slipUrl = "";
+      }
+    }
+
+
+    // =========================
+    // SAVE ORDER
+    // =========================
+
+    sheet.appendRow([
+      data.timestamp || new Date().toISOString(),
+      orderId,
+      data.name || "",
+      data.phone || "",
+      data.fbName || "",
+      data.address || "",
+      data.items || "",
+      data.paymentMethod || "",
+      Number(data.codFee) || 0,
+      Number(data.total) || 0,
+      data.note || "",
+      "" // ช่องสลิป เดี๋ยวใส่ link ด้านล่าง
+    ]);
+
+
+    // =========================
+    // ADD "ดูสลิป" LINK
+    // =========================
+
+    const newRow = sheet.getLastRow();
+
+    if (slipUrl) {
+
+      const richText = SpreadsheetApp
+        .newRichTextValue()
+        .setText("ดูสลิป")
+        .setLinkUrl(slipUrl)
+        .build();
+
+      // Column 12 = สลิปโอนเงิน
+      sheet
+        .getRange(newRow, 12)
+        .setRichTextValue(richText);
+
+    } else if (data.slipBase64) {
+
+      sheet
+        .getRange(newRow, 12)
+        .setValue("อัปโหลดสลิปไม่สำเร็จ");
+    }
+
+
+    SpreadsheetApp.flush();
+
+
+    return ContentService
+      .createTextOutput(
+        JSON.stringify({
+          status: "ok",
+          orderId: orderId,
+          slipUrl: slipUrl
+        })
+      )
+      .setMimeType(ContentService.MimeType.JSON);
+
 
   } catch (error) {
 
-    console.error("SAVE SLIP ERROR:", error);
+    console.error("ORDER ERROR:", error);
 
-    throw error;
+    return ContentService
+      .createTextOutput(
+        JSON.stringify({
+          status: "error",
+          message: error.message
+        })
+      )
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 /* ==================================================
