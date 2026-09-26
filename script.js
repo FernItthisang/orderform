@@ -188,101 +188,71 @@ function generateOrderId(sheet) {
 }
 
 function doPost(e) {
-
   try {
+    const data = JSON.parse(e.postData.contents);
+    const sheet = getDailySheet();
 
-    /* ---------- อ่านข้อมูลจากเว็บ ---------- */
+    // พยายามเก็บสลิป แต่ถ้าพัง ห้ามทำให้ออเดอร์หาย
+    let slipUrl = "";
+    let slipStatus = "";
 
-    const data =
-      JSON.parse(e.postData.contents);
+    if (data.slipBase64) {
+      try {
+        slipUrl = saveSlip(
+          data.slipBase64,
+          data.slipMimeType,
+          data.slipFileName,
+          data.orderId
+        );
 
+        if (slipUrl) {
+          slipStatus = `=HYPERLINK("${slipUrl}","ดูสลิป")`;
+        } else {
+          slipStatus = "อัปโหลดสลิปไม่สำเร็จ";
+        }
 
-    /* ---------- เปิด Sheet วันนี้ ---------- */
-
-    const sheet =
-      getDailySheet();
-    const orderId = generateOrderId(sheet);
-  
-
-
-    /* ---------- Upload Slip ---------- */
-
-    const slipUrl = saveSlip(
-      data.slipBase64,
-      data.slipMimeType,
-      data.slipFileName,
-      data.orderId
-    );
-    
-    let slipLink = "";
-    
-    if (slipUrl) {
-      slipLink = `=HYPERLINK("${slipUrl}","ดูสลิป")`;
+      } catch (slipError) {
+        console.error("SLIP ERROR:", slipError);
+        slipStatus = "อัปโหลดสลิปไม่สำเร็จ";
+      }
     }
 
-
-    /* ---------- เพิ่ม Order ---------- */
-
-      sheet.appendRow([
-        data.timestamp || new Date().toISOString(),
-        data.orderId || "",
-        data.name || "",
-        data.phone || "",
-        data.fbName || "",
-        data.address || "",
-        data.items || "",
-        data.paymentMethod || "",
-        Number(data.codFee) || 0,
-        Number(data.total) || 0,
-        data.note || "",
-        slipLink
-      ]);
+    // สำคัญ: บันทึก Order ไม่ว่าสลิปจะสำเร็จหรือไม่
+    sheet.appendRow([
+      data.timestamp || new Date().toISOString(),
+      data.orderId || "",
+      data.name || "",
+      data.phone || "",
+      data.fbName || "",
+      data.address || "",
+      data.items || "",
+      data.paymentMethod || "",
+      Number(data.codFee) || 0,
+      Number(data.total) || 0,
+      data.note || "",
+      slipStatus
+    ]);
 
     SpreadsheetApp.flush();
 
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        status: "ok",
+        orderId: data.orderId || "",
+        slipUrl: slipUrl
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
 
-    /* ---------- Response ---------- */
+  } catch (error) {
+
+    console.error("ORDER ERROR:", error);
 
     return ContentService
-      .createTextOutput(
-
-        JSON.stringify({
-
-          status: "ok",
-
-          sheet: sheet.getName()
-
-        })
-
-      )
-      .setMimeType(
-        ContentService.MimeType.JSON
-      );
-
-
-  }
-
-  catch (err) {
-
-    console.error(err);
-
-
-    return ContentService
-      .createTextOutput(
-
-        JSON.stringify({
-
-          status: "error",
-
-          message: err.message
-
-        })
-
-      )
-      .setMimeType(
-        ContentService.MimeType.JSON
-      );
-
+      .createTextOutput(JSON.stringify({
+        status: "error",
+        message: error.message
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
