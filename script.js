@@ -21,8 +21,10 @@
  * ถ้ายังไม่มีแท็บวันนั้น สคริปต์จะสร้างใหม่และใส่หัวตารางให้อัตโนมัติ
  */
 
-const SLIP_FOLDER_ID = "1AygB9R__9ACj0dRUGO-aVZLYV4q-PE7e"; // โฟลเดอร์ https://drive.google.com/drive/folders/1AygB9R__9ACj0dRUGO-aVZLYV4q-PE7e
-const SLIP_FOLDER_NAME = "สลิปออเดอร์ขนม";
+const SLIP_FOLDER_ID = "1AygB9R__9ACj0dRUGO-aVZLYV4q-PE7e";
+const SLIP_FOLDER_NAME = "สลิป";
+
+const SPREADSHEET_ID = "1btwZ20ygLfLmpCcCeYIzD6PWWiaZ-I0ln5gWiNoqDWM";
 
 const SHEET_HEADERS = [
   "Timestamp",
@@ -38,91 +40,263 @@ const SHEET_HEADERS = [
   "สลิปโอนเงิน"
 ];
 
-/** ชื่อแท็บตามวันที่ไทย เช่น 2026-09-26 */
+
+/* =========================
+   วันที่ประเทศไทย
+========================= */
+
 function todaySheetName() {
-  return Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd");
+  return Utilities.formatDate(
+    new Date(),
+    "Asia/Bangkok",
+    "yyyy-MM-dd"
+  );
 }
 
-/** หาแท็บของวันนี้ ถ้ายังไม่มีให้สร้างใหม่ + ใส่หัวตาราง */
+
+/* =========================
+   Google Sheet
+========================= */
+
 function getDailySheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
   const name = todaySheetName();
+
   let sheet = ss.getSheetByName(name);
 
+
+  // ถ้ายังไม่มี Sheet ของวันนี้ → สร้าง
   if (!sheet) {
+
     sheet = ss.insertSheet(name);
+
     sheet.appendRow(SHEET_HEADERS);
+
     sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, SHEET_HEADERS.length).setFontWeight("bold");
-  } else if (sheet.getLastRow() === 0) {
-    sheet.appendRow(SHEET_HEADERS);
-    sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, SHEET_HEADERS.length).setFontWeight("bold");
+
+    sheet
+      .getRange(1, 1, 1, SHEET_HEADERS.length)
+      .setFontWeight("bold");
+
   }
+
+  // ถ้ามี Sheet แต่ยังว่าง
+  else if (sheet.getLastRow() === 0) {
+
+    sheet.appendRow(SHEET_HEADERS);
+
+    sheet.setFrozenRows(1);
+
+    sheet
+      .getRange(1, 1, 1, SHEET_HEADERS.length)
+      .setFontWeight("bold");
+  }
+
 
   return sheet;
 }
 
+
+/* =========================
+   Google Drive Slip Folder
+========================= */
+
 function getSlipFolder() {
+
   if (SLIP_FOLDER_ID) {
     return DriveApp.getFolderById(SLIP_FOLDER_ID);
   }
-  const existing = DriveApp.getFoldersByName(SLIP_FOLDER_NAME);
+
+
+  const existing =
+    DriveApp.getFoldersByName(SLIP_FOLDER_NAME);
+
+
   if (existing.hasNext()) {
     return existing.next();
   }
+
+
   return DriveApp.createFolder(SLIP_FOLDER_NAME);
 }
 
-function saveSlip(base64, mimeType, fileName, orderTimestamp) {
+
+/* =========================
+   Save Slip
+========================= */
+
+function saveSlip(
+  base64,
+  mimeType,
+  fileName,
+  orderTimestamp
+) {
+
   if (!base64) return "";
+
+
   try {
+
     const blob = Utilities.newBlob(
+
       Utilities.base64Decode(base64),
+
       mimeType || "image/jpeg",
-      (orderTimestamp || Date.now()) + "_" + (fileName || "slip.jpg")
+
+      (orderTimestamp || Date.now())
+        + "_"
+        + (fileName || "slip.jpg")
+
     );
-    const file = getSlipFolder().createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+
+    const file =
+      getSlipFolder().createFile(blob);
+
+
+    file.setSharing(
+      DriveApp.Access.ANYONE_WITH_LINK,
+      DriveApp.Permission.VIEW
+    );
+
+
     return file.getUrl();
+
+
   } catch (err) {
-    return "อัปโหลดสลิปไม่สำเร็จ: " + err.message;
+
+    return "อัปโหลดสลิปไม่สำเร็จ: "
+      + err.message;
+
   }
 }
+
+
+/* =========================
+   RECEIVE ORDER
+========================= */
 
 function doPost(e) {
-  let data;
+
   try {
-    data = JSON.parse(e.postData.contents);
-  } catch (err) {
-    return ContentService.createTextOutput(
-      JSON.stringify({ status: "error", message: "Invalid payload" })
-    ).setMimeType(ContentService.MimeType.JSON);
+
+    /* ---------- อ่านข้อมูลจากเว็บ ---------- */
+
+    const data =
+      JSON.parse(e.postData.contents);
+
+
+    /* ---------- เปิด Sheet วันนี้ ---------- */
+
+    const sheet =
+      getDailySheet();
+
+
+    /* ---------- Upload Slip ---------- */
+
+    const slipUrl = saveSlip(
+
+      data.slipBase64,
+
+      data.slipMimeType,
+
+      data.slipFileName,
+
+      data.timestamp
+
+    );
+
+
+    /* ---------- เพิ่ม Order ---------- */
+
+    sheet.appendRow([
+
+      data.timestamp ||
+        new Date().toISOString(),
+
+      data.name || "",
+
+      data.phone || "",
+
+      data.fbName || "",
+
+      data.address || "",
+
+      data.items || "",
+
+      data.paymentMethod || "",
+
+      Number(data.codFee) || 0,
+
+      Number(data.total) || 0,
+
+      data.note || "",
+
+      slipUrl
+
+    ]);
+
+
+    SpreadsheetApp.flush();
+
+
+    /* ---------- Response ---------- */
+
+    return ContentService
+      .createTextOutput(
+
+        JSON.stringify({
+
+          status: "ok",
+
+          sheet: sheet.getName()
+
+        })
+
+      )
+      .setMimeType(
+        ContentService.MimeType.JSON
+      );
+
+
   }
 
-  const sheet = getDailySheet();
-  const slipUrl = saveSlip(data.slipBase64, data.slipMimeType, data.slipFileName, data.timestamp);
+  catch (err) {
 
-  sheet.appendRow([
-    data.timestamp || new Date().toISOString(),
-    data.name || "",
-    data.phone || "",
-    data.fbName || "",
-    data.address || "",
-    data.items || "",
-    data.paymentMethod || "",
-    data.codFee || 0,
-    data.total || 0,
-    data.note || "",
-    slipUrl
-  ]);
+    console.error(err);
 
-  return ContentService.createTextOutput(
-    JSON.stringify({ status: "ok", sheet: sheet.getName() })
-  ).setMimeType(ContentService.MimeType.JSON);
+
+    return ContentService
+      .createTextOutput(
+
+        JSON.stringify({
+
+          status: "error",
+
+          message: err.message
+
+        })
+
+      )
+      .setMimeType(
+        ContentService.MimeType.JSON
+      );
+
+  }
 }
 
-// Optional: lets you open the Web App URL directly in a browser to check it's alive.
-function doGet(e) {
-  return ContentService.createTextOutput("Order form backend is running.");
+
+/* =========================
+   TEST WEB APP
+========================= */
+
+function doGet() {
+
+  return ContentService
+    .createTextOutput(
+      "JBS Bakery order backend is running."
+    );
+
 }
