@@ -21,10 +21,17 @@
  * ถ้ายังไม่มีแท็บวันนั้น สคริปต์จะสร้างใหม่และใส่หัวตารางให้อัตโนมัติ
  */
 
-const SLIP_FOLDER_ID = "1AygB9R__9ACj0dRUGO-aVZLYV4q-PE7e";
-const SLIP_FOLDER_NAME = "สลิป";
+/**
+ * JBS Bakery - Google Apps Script Backend
+ *
+ * Website -> Apps Script -> Google Sheets + Google Drive
+ */
 
-const SPREADSHEET_ID = "1btwZ20ygLfLmpCcCeYIzD6PWWiaZ-I0ln5gWiNoqDWM";
+const SLIP_FOLDER_ID = "1AygB9R__9ACj0dRUGO-aVZLYV4q-PE7e";
+
+const SPREADSHEET_ID =
+  "1btwZ20ygLfLmpCcCeYIzD6PWWiaZ-I0ln5gWiNoqDWM";
+
 
 const SHEET_HEADERS = [
   "Timestamp",
@@ -41,48 +48,60 @@ const SHEET_HEADERS = [
   "สลิปโอนเงิน"
 ];
 
-/* =========================
-   วันที่ประเทศไทย
-========================= */
+
+/* ==================================================
+   DATE
+================================================== */
 
 function todaySheetName() {
+
   return Utilities.formatDate(
     new Date(),
     "Asia/Bangkok",
     "yyyy-MM-dd"
   );
+
 }
 
 
-/* =========================
-   Google Sheet
-========================= */
+/* ==================================================
+   GOOGLE SHEET
+================================================== */
 
 function getDailySheet() {
 
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss =
+    SpreadsheetApp.openById(SPREADSHEET_ID);
 
-  const name = todaySheetName();
+  const sheetName =
+    todaySheetName();
 
-  let sheet = ss.getSheetByName(name);
+  let sheet =
+    ss.getSheetByName(sheetName);
 
 
-  // ถ้ายังไม่มี Sheet ของวันนี้ → สร้าง
+  // ถ้ายังไม่มี Sheet วันนี้
   if (!sheet) {
 
-    sheet = ss.insertSheet(name);
+    sheet =
+      ss.insertSheet(sheetName);
 
     sheet.appendRow(SHEET_HEADERS);
 
     sheet.setFrozenRows(1);
 
     sheet
-      .getRange(1, 1, 1, SHEET_HEADERS.length)
+      .getRange(
+        1,
+        1,
+        1,
+        SHEET_HEADERS.length
+      )
       .setFontWeight("bold");
-
   }
 
-  // ถ้ามี Sheet แต่ยังว่าง
+
+  // ถ้ามี Sheet แต่ไม่มีข้อมูลเลย
   else if (sheet.getLastRow() === 0) {
 
     sheet.appendRow(SHEET_HEADERS);
@@ -90,186 +109,353 @@ function getDailySheet() {
     sheet.setFrozenRows(1);
 
     sheet
-      .getRange(1, 1, 1, SHEET_HEADERS.length)
+      .getRange(
+        1,
+        1,
+        1,
+        SHEET_HEADERS.length
+      )
       .setFontWeight("bold");
   }
 
 
   return sheet;
+
 }
 
 
-/* =========================
-   Google Drive Slip Folder
-========================= */
+/* ==================================================
+   ORDER ID
+================================================== */
+
+function generateOrderId(sheet) {
+
+  const datePart =
+    Utilities.formatDate(
+      new Date(),
+      "Asia/Bangkok",
+      "yyMMdd"
+    );
+
+  /*
+    Row 1 = Header
+
+    ถ้าไม่มี order:
+    getLastRow() = 1
+    Order แรก = 0001
+
+    Order ต่อไป:
+    0002, 0003...
+  */
+
+  const orderNumber =
+    Math.max(1, sheet.getLastRow());
+
+
+  const runningNumber =
+    String(orderNumber).padStart(4, "0");
+
+
+  return (
+    "JB" +
+    datePart +
+    "-" +
+    runningNumber
+  );
+
+}
+
+
+/* ==================================================
+   GOOGLE DRIVE
+================================================== */
 
 function getSlipFolder() {
 
-  if (SLIP_FOLDER_ID) {
-    return DriveApp.getFolderById(SLIP_FOLDER_ID);
-  }
+  return DriveApp
+    .getFolderById(SLIP_FOLDER_ID);
 
-
-  const existing =
-    DriveApp.getFoldersByName(SLIP_FOLDER_NAME);
-
-
-  if (existing.hasNext()) {
-    return existing.next();
-  }
-
-
-  return DriveApp.createFolder(SLIP_FOLDER_NAME);
 }
 
 
-/* =========================
-   Save Slip
-========================= */
+/* ==================================================
+   SAVE SLIP
+================================================== */
 
-function saveSlip(base64, mimeType, fileName, orderId) {
+function saveSlip(
+  base64,
+  mimeType,
+  fileName,
+  orderId
+) {
 
   if (!base64) {
     return "";
   }
 
+
   try {
 
-    const bytes = Utilities.base64Decode(base64);
+    const bytes =
+      Utilities.base64Decode(base64);
 
-    const blob = Utilities.newBlob(
-      bytes,
-      mimeType || "image/jpeg",
-      (orderId || Date.now()) + "_" + (fileName || "slip.jpg")
-    );
 
-    const folder = DriveApp.getFolderById(SLIP_FOLDER_ID);
+    const safeFileName =
+      orderId +
+      "_" +
+      (fileName || "slip.jpg");
 
-    const file = folder.createFile(blob);
+
+    const blob =
+      Utilities.newBlob(
+        bytes,
+        mimeType || "image/jpeg",
+        safeFileName
+      );
+
+
+    const folder =
+      getSlipFolder();
+
+
+    const file =
+      folder.createFile(blob);
+
+
+    /*
+      ทำให้กด link จาก Sheet แล้วดูสลิปได้
+    */
 
     file.setSharing(
       DriveApp.Access.ANYONE_WITH_LINK,
       DriveApp.Permission.VIEW
     );
 
+
     return file.getUrl();
+
 
   } catch (error) {
 
-    console.error("SLIP ERROR:", error);
+    console.error(
+      "SAVE SLIP ERROR:",
+      error
+    );
 
-    return "อัปโหลดสลิปไม่สำเร็จ: "
-    + err.message;
+    return "";
 
   }
+
 }
 
 
-/* =========================
-   RECEIVE ORDER
-========================= */
-
-function generateOrderId(sheet) {
-
-  const datePart = Utilities.formatDate(
-    new Date(),
-    "Asia/Bangkok",
-    "yyMMdd"
-  );
-
-  // แถว 1 = header
-  // ดังนั้น order แรกจะเป็น 0001
-  const orderNumber = Math.max(1, sheet.getLastRow());
-
-  const runningNumber =
-    String(orderNumber).padStart(4, "0");
-
-  return "JB" + datePart + "-" + runningNumber;
-}
+/* ==================================================
+   RECEIVE ORDER FROM WEBSITE
+================================================== */
 
 function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const sheet = getDailySheet();
 
-    // พยายามเก็บสลิป แต่ถ้าพัง ห้ามทำให้ออเดอร์หาย
+  try {
+
+    /* ------------------------------
+       1. อ่านข้อมูลจากเว็บไซต์
+    ------------------------------ */
+
+    if (
+      !e ||
+      !e.postData ||
+      !e.postData.contents
+    ) {
+
+      throw new Error(
+        "ไม่พบข้อมูลจากเว็บไซต์"
+      );
+
+    }
+
+
+    const data =
+      JSON.parse(
+        e.postData.contents
+      );
+
+
+    /* ------------------------------
+       2. เปิด Sheet ของวันนี้
+    ------------------------------ */
+
+    const sheet =
+      getDailySheet();
+
+
+    /* ------------------------------
+       3. Order ID
+
+       ถ้า frontend ส่ง orderId มา
+       ใช้อันนั้น
+
+       ถ้าไม่ได้ส่งมา
+       Apps Script สร้างให้
+    ------------------------------ */
+
+    const orderId =
+      data.orderId ||
+      generateOrderId(sheet);
+
+
+    /* ------------------------------
+       4. Upload Slip
+    ------------------------------ */
+
     let slipUrl = "";
-    let slipStatus = "";
+
+    let slipCell = "";
+
 
     if (data.slipBase64) {
-      try {
-        slipUrl = saveSlip(
+
+      slipUrl =
+        saveSlip(
           data.slipBase64,
           data.slipMimeType,
           data.slipFileName,
-          data.orderId
+          orderId
         );
 
-        if (slipUrl) {
-          slipStatus = `=HYPERLINK("${slipUrl}","ดูสลิป")`;
-        } else {
-          slipStatus = "อัปโหลดสลิปไม่สำเร็จ";
-        }
 
-      } catch (slipError) {
-        console.error("SLIP ERROR:", slipError);
-        slipStatus = "อัปโหลดสลิปไม่สำเร็จ";
+      if (slipUrl) {
+
+        slipCell =
+          '=HYPERLINK("' +
+          slipUrl +
+          '","ดูสลิป")';
+
+      } else {
+
+        slipCell =
+          "อัปโหลดสลิปไม่สำเร็จ";
+
       }
+
     }
 
-    // สำคัญ: บันทึก Order ไม่ว่าสลิปจะสำเร็จหรือไม่
+
+    /* ------------------------------
+       5. บันทึก Order
+    ------------------------------ */
+
     sheet.appendRow([
-      data.timestamp || new Date().toISOString(),
-      data.orderId || "",
+
+      data.timestamp ||
+        new Date().toISOString(),
+
+      orderId,
+
       data.name || "",
+
       data.phone || "",
+
       data.fbName || "",
+
       data.address || "",
+
       data.items || "",
+
       data.paymentMethod || "",
+
       Number(data.codFee) || 0,
+
       Number(data.total) || 0,
+
       data.note || "",
-      slipStatus
+
+      slipCell
+
     ]);
+
 
     SpreadsheetApp.flush();
 
+
+    /* ------------------------------
+       6. Response
+    ------------------------------ */
+
     return ContentService
-      .createTextOutput(JSON.stringify({
-        status: "ok",
-        orderId: data.orderId || "",
-        slipUrl: slipUrl
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .createTextOutput(
+
+        JSON.stringify({
+
+          status: "ok",
+
+          orderId: orderId,
+
+          sheet: sheet.getName(),
+
+          slipUrl: slipUrl
+
+        })
+
+      )
+      .setMimeType(
+        ContentService.MimeType.JSON
+      );
+
 
   } catch (error) {
 
-    console.error("ORDER ERROR:", error);
+    console.error(
+      "ORDER ERROR:",
+      error
+    );
+
 
     return ContentService
-      .createTextOutput(JSON.stringify({
-        status: "error",
-        message: error.message
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .createTextOutput(
+
+        JSON.stringify({
+
+          status: "error",
+
+          message:
+            error.message
+
+        })
+
+      )
+      .setMimeType(
+        ContentService.MimeType.JSON
+      );
+
   }
+
 }
 
 
-/* =========================
+/* ==================================================
    TEST WEB APP
-========================= */
+
+   เปิด /exec ใน Browser
+   ถ้าขึ้น status ok = Backend ทำงาน
+================================================== */
 
 function doGet() {
 
   return ContentService
-  .createTextOutput(
-    JSON.stringify({
-      status: "ok",
-      orderId: orderId,
-      sheet: sheet.getName()
-    })
-  )
-  .setMimeType(ContentService.MimeType.JSON);
+    .createTextOutput(
+
+      JSON.stringify({
+
+        status: "ok",
+
+        message:
+          "JBS Bakery backend is running"
+
+      })
+
+    )
+    .setMimeType(
+      ContentService.MimeType.JSON
+    );
+
 }
