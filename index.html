@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artisanal Sourdough Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <!-- <div class="brand-mark"></div> -->
+    <img src="assets/logo.png" alt="JB's Bakery" class="brand-logo">
+    <!-- <div>
+      <div class="brand-name">ครัวคุณแป้ง</div>
+      <div class="brand-sub">ขนมโฮมเมด อบใหม่ทุกวัน</div>
+    </div> -->
+  </div>
+  <button class="cart-pill" onclick="openPanel('cart')">
+    🧺 ตะกร้า <span class="cart-count" id="headerCount">0</span>
+  </button>
+</header>
+
+<section class="hero">
+  <h1>Artisanal Sourdough Menu</h1>
+  <h3>อบสดใหม่ด้วยใจ จากร้านJB’s Bakerys สู่บ้านคุณ</h3>
+</section>
+
+<main>
+  <div class="grid" id="productGrid"></div>
+</main>
+
+<div class="cart-bar" id="cartBar">
+  <div>
+    <div class="info" id="cartBarInfo">0 ชิ้น</div>
+    <div class="total" id="cartBarTotal">฿0</div>
+  </div>
+  <button onclick="openPanel('cart')">ดูตะกร้า</button>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+<!-- CART PANEL -->
+<div class="panel" id="panel-cart">
+  <div class="panel-head">
+    <h2>ตะกร้าของคุณ</h2>
+    <button class="panel-close" onclick="closeAllPanels()">×</button>
+  </div>
+  <div class="panel-body" id="cartList"></div>
+  <div class="panel-foot" id="cartFoot"></div>
+</div>
+
+<!-- CUSTOMER INFO PANEL -->
+<div class="panel" id="panel-info">
+  <div class="panel-head">
+    <h2>ข้อมูลจัดส่ง</h2>
+    <button class="panel-close" onclick="closeAllPanels()">×</button>
+  </div>
+  <div class="panel-body">
+    <div class="step-track"><span class="active"></span><span class="active"></span><span></span></div>
+    <div class="back-row" onclick="openPanel('cart')">‹ กลับไปที่ตะกร้า</div>
+    <div class="field" id="f-name">
+      <label>ชื่อ-นามสกุล</label>
+      <input type="text" id="inputName" placeholder="เช่น สมหญิง ใจดี">
+      <div class="error">กรุณากรอกชื่อผู้สั่ง</div>
+    </div>
+    <div class="field" id="f-phone">
+      <label>เบอร์โทรศัพท์</label>
+      <input type="tel" id="inputPhone" placeholder="08x-xxx-xxxx">
+      <div class="error">กรุณากรอกเบอร์โทรให้ถูกต้อง</div>
+    </div>
+    <div class="field" id="f-fb">
+      <label>ชื่อ Facebook (สำหรับติดต่อ)</label>
+      <input type="text" id="inputFb" placeholder="เช่น JB Bakery / ชื่อโปรไฟล์ Facebook">
+      <div class="error">กรุณากรอกชื่อ Facebook</div>
+    </div>
+    <div class="field" id="f-address">
+      <label>ที่อยู่จัดส่ง</label>
+      <textarea id="inputAddress" placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์"></textarea>
+      <div class="error">กรุณากรอกที่อยู่จัดส่ง</div>
+    </div>
+    <div class="field">
+      <label>หมายเหตุถึงร้าน (ถ้ามี)</label>
+      <textarea id="inputNote" placeholder="เช่น ไม่ใส่ถั่ว, ฝากไว้ที่ป้อม รปภ."></textarea>
+    </div>
+  </div>
+  <div class="panel-foot">
+    <button class="primary-btn" onclick="goToReview()">ไปที่หน้าสรุปออเดอร์</button>
+  </div>
+</div>
+
+<!-- REVIEW / CONFIRM PANEL -->
+<div class="panel" id="panel-review">
+  <div class="panel-head">
+    <h2>ยืนยันออเดอร์</h2>
+    <button class="panel-close" onclick="closeAllPanels()">×</button>
+  </div>
+  <div class="panel-body">
+    <div class="step-track"><span class="active"></span><span class="active"></span><span class="active"></span></div>
+    <div class="back-row" onclick="openPanel('info')">‹ แก้ไขข้อมูลจัดส่ง</div>
+    <div class="review-block">
+      <h4>รายการขนม</h4>
+      <div id="reviewItems"></div>
+      <div class="row" style="margin-top:8px;"><span>ยอดรวมค่าขนม</span><span id="reviewTotal">฿0</span></div>
+      <div class="row fee-row" id="feeRow" style="display:none;"><span>ค่าธรรมเนียมเก็บเงินปลายทาง</span><span id="feeAmount">฿0</span></div>
+      <div class="row grand-row"><span>ยอดที่ต้องชำระ</span><span id="grandTotalText">฿0</span></div>
+    </div>
+    <div class="review-block">
+      <h4>จัดส่งถึง</h4>
+      <div class="row"><span id="reviewName"></span></div>
+      <div class="row"><span id="reviewPhone"></span></div>
+      <div class="row"><span>FB: <span id="reviewFb"></span></span></div>
+      <div class="row" style="display:block;" id="reviewAddress"></div>
+    </div>
+    <div class="review-block">
+      <h4>วิธีชำระเงิน</h4>
+      <div class="pay-method-toggle">
+        <button type="button" class="pm-btn" id="pmTransfer" onclick="selectPaymentMethod('transfer')">💸 โอนเงิน</button>
+        <button type="button" class="pm-btn" id="pmCod" onclick="selectPaymentMethod('cod')">📦 เก็บเงินปลายทาง</button>
+      </div>
+
+      <div id="transferSection" style="display:none;">
+        <div class="qr-wrap">
+          <div class="pay-amount" id="payAmount">฿0</div>
+          <div class="qr-box" id="qrBox">
+            <div class="qr-placeholder">แนบรูป QR พร้อมเพย์ของร้าน<br>ที่ตัวแปร PAYMENT_QR_IMAGE ในโค้ด</div>
+          </div>
+          <div class="bank-info">
+            <div><b id="bankName">ธนาคาร —</b></div>
+            <div>ชื่อบัญชี: <span id="bankAccountName">—</span></div>
+            <div>เลขบัญชี/พร้อมเพย์: <span id="bankAccountNumber">—</span></div>
+          </div>
+        </div>
+        <div class="slip-upload">
+          <label class="upload-btn" for="slipInput" id="slipUploadLabel">📎 แนบสลิปการโอนเงิน</label>
+          <input type="file" id="slipInput" accept="image/*" onchange="handleSlip(event)">
+          <div class="slip-preview" id="slipPreview">
+            <img id="slipPreviewImg" alt="สลิปโอนเงิน">
+            <div class="name" id="slipFileName"></div>
+            <button onclick="removeSlip()" type="button">ลบ</button>
+          </div>
+          <div class="slip-hint">กรุณาแนบสลิปก่อนกดยืนยันสั่งซื้อ</div>
+        </div>
+      </div>
+
+      <div id="codSection" style="display:none;">
+        <div class="cod-note">
+          ชำระเงินสดกับผู้จัดส่งเมื่อได้รับขนม<br>
+          มีค่าธรรมเนียมเก็บเงินปลายทางเพิ่ม <b id="codFeeText">฿0</b> จากยอดค่าขนม
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="panel-foot">
+    <button class="primary-btn" id="confirmBtn" onclick="submitOrder()" disabled>เลือกวิธีชำระเงิน</button>
+  </div>
+</div>
+
+<!-- SUCCESS PANEL -->
+<div class="panel" id="panel-success">
+  <div class="panel-head">
+    <h2>&nbsp;</h2>
+    <button class="panel-close" onclick="closeAllPanels()">×</button>
+  </div>
+  <div class="panel-body">
+    <div class="success-view">
+      <div class="big-icon">🎉</div>
+      <h2>สั่งขนมสำเร็จแล้ว</h2>
+      <p>ร้านได้รับออเดอร์ของคุณแล้ว ทางร้านจะติดต่อกลับเพื่อยืนยันและแจ้งเวลาจัดส่งอีกครั้ง</p>
+      <div class="ref" id="orderRef"></div>
+    </div>
+  </div>
+  <div class="panel-foot">
+    <button class="ghost-btn" onclick="location.reload()">สั่งขนมเพิ่ม</button>
+  </div>
+</div>
+
+<script>
+/* ---------- 1) ตั้งค่า URL ของ Google Apps Script ที่นี่ ---------- */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZi5X7NmPpOu_eP6T8y_xayqzQ4O_nC6t05HJUH8z5T1-_HJ7j6X13P3g7H6y1P_P/exec";
+/* ---------- 1b) ตั้งค่าข้อมูลรับโอนเงิน ---------- */
+// วางรูป QR พร้อมเพย์ของร้าน (สกรีนช็อตจากแอปธนาคาร) เป็น URL หรือ base64 data URI ก็ได้
+// เช่น "qr-promptpay.png" (ไฟล์ที่วางไว้โฟลเดอร์เดียวกับ index.html) หรือ "data:image/png;base64,...."
+const PAYMENT_QR_IMAGE = "assets/qr.jpg"; // ใส่ path/URL/base64 ของรูป QR ตรงนี้
+const BANK_NAME = "ธนาคารกสิกรไทย";
+const BANK_ACCOUNT_NAME = "รุ่งรัตน์ อิทธิแสง";
+const BANK_ACCOUNT_NUMBER = "168-1-53625-2";
+const COD_FEE = 20; // ค่าธรรมเนียมเก็บเงินปลายทาง (บาท) แก้ได้ตามร้าน
+
+/* ---------- 2) รายการสินค้า แก้ไข/เพิ่มได้ตามร้านจริง ---------- */
+const PRODUCTS = [
+  { id:"plain-sourdough", name:"Rustic Plain<br>Sourdough", emoji:"🍞", bg:"#F3E3B8", price:285,
+    image:"assets/plain.jpg",
+    description:"ใช้แป้งฝรั่งเศสแท้ เพิ่มมิติด้วยโฮลวีทและไรย์ เนื้อ Crumb เหนียวนุ่มหนึบ", flavors:null },
+  { id:"pumpkin-sourdough", name:"Pumpkin<br>Sourdough", emoji:"🍫", bg:"#E4CBB4", price:310,
+    image:"assets/pumpkin.jpg",
+    description:"ความหวานละมุนจากฟักทองญี่ปุ่น เข้ากันดีกับความเปรี้ยวเบาๆ ของซาวโดว์", flavors:null },
+  { id:"squid-ink-sourdough", name:"Squid Ink<br>Sourdough", emoji:"🍪", bg:"#F0D9AE", price:310,
+    image:"assets/squidink.jpg",
+    description:"Sourdoughซาวโดหมึกดำรสเข้มข้น เนื้อเหนียวนุ่ม ผิวกรอบ หอมกลิ่นทะเล", flavors:null },
+  { id:"pesto-macadamia-sourdough", name:"Pesto Macadamia<br>Sourdough", emoji:"🥧", bg:"#F6E7C6", price:320,
+    image:"assets/pesto.jpg",
+    description:"ซาวโดว์เพสโต้โหระพา แมคคาเดเมียและน้ำมันมะกอก หอมนุ่มละมุน", flavors:null },
+  { id:"matcha-redbean-sourdough", name:"Matcha & Red Bean<br>Sourdough", emoji:"🍮", bg:"#F5EBD0", price:320,
+    image:"assets/matcha.jpg",
+    description:"การผสมผสานที่ลงตัวระหว่างรสขมจางๆ ของมัทฉะและความหวานของถั่วแดง", flavors:null },
+  { id:"chocolate-sourdough", name:"Chocolate<br>Sourdough", emoji:"🌸", bg:"#F1D6DE", price:320,
+    image:"assets/chocolate.jpg",
+    description:"Sourdoughจากโกโก้สวนพอสุขสู่ช็อกโกแลตทำมือ หอมเข้มข้นลงตัวในทุกคำ", flavors:null },
+  { id:"mixed-fruit-sourdough", name:"Mixed Fruit<br>Sourdough", emoji:"🌸", bg:"#F1D6DE", price:350,
+    image:"assets/mixfruit.jpg",
+    description:"หวานอมเปรี้ยวด้วยสตรอว์เบอร์รี แครนเบอร์รี ส้ม ลูกพลับ และมะเดื่อฝรั่ง", flavors:null },
+  { id:"mixed-nut-sourdough", name:"Mixed Nut<br>Sourdough", emoji:"🌸", bg:"#F1D6DE", price:350,
+    image:"assets/mixnut.jpg",
+    description:"รวมถั่วเน้นๆ: แมคคาเดเมีย,พีแคน วอลนัท พิสตาชิโอ และอัลมอนด์เคลือบคาราเมล", flavors:null },
+  { id:"mixed-seed-sourdough", name:"Mixed Seed<br>Sourdough", emoji:"🌸", bg:"#F1D6DE", price:350,
+    image:"assets/mixseed.jpg",
+    description:"จัดเต็มงา2สี แตงโม ฟักทอง ทานตะวัน แฟลกซ์ซีด หอมธัญพืชเคี้ยวเพลิน", flavors:null },
+  { id:"whole-wheat-milk-bread", name:"Whole Wheat<br>Milk Bread", emoji:"🌸", bg:"#F1D6DE", price:285,
+    image:"assets/whole-wheat-milk-bread.jpg",
+    description:"ไฟเบอร์เต็มคำจากโฮลวีต แต่เนื้อสัมผัสยังนุ่มหนึบ ปิ้งกรอบนอกนุ่มใน", flavors:null },
+  { id:"banana-milk-bread", name:"Banana<br>Milk Bread", emoji:"🌸", bg:"#F1D6DE", price:320,
+    image:"assets/banana-milk-bread.jpg",
+    description:"หอมกลิ่นกล้วยแท้ละมุนไปทั้งปาก นุ่มฉ่ำเป็นพิเศษ", flavors:null },
+  { id:"chocolate-milk-bread", name:"Chocolate<br>Milk Bread", emoji:"🌸", bg:"#F1D6DE", price:320,
+    image:"assets/chocolate-milk-bread.jpg",
+    description:"ช็อกโกแลตเข้มข้น หวานน้อยแบบผู้ใหญ่", flavors:null },
+    
+//   { id:"maple-sourdough", name:"Maple Sourdough", emoji:"🌸", bg:"#F1D6DE", price:150,
+//     image:"assets/maple-sourdough.png",
+//      description:"Sourdough รสความหวานจากสัปปะรดพอร์ต พร้อมความอร่อยจากส่วนผสมของเนื้อข้าวสาลีที่สับอบให้มีความหนุนหนาว", 
+//     // flavors:["รวมรส","พิสตาชิโอ","ราสป์เบอร์รี่"] 
+//     flavors:null },
+];
+
+let cart = {}; // key: id+flavor -> {id,name,emoji,flavor,price,qty}
+let slipData = null; // {base64, mimeType, fileName}
+let paymentMethod = null; // "transfer" | "cod"
+
+function grandTotal(){
+  return cartTotal() + (paymentMethod === "cod" ? COD_FEE : 0);
+}
+
+function initPaymentInfo(){
+  document.getElementById("bankName").textContent = BANK_NAME;
+  document.getElementById("bankAccountName").textContent = BANK_ACCOUNT_NAME;
+  document.getElementById("bankAccountNumber").textContent = BANK_ACCOUNT_NUMBER;
+  if(PAYMENT_QR_IMAGE){
+    document.getElementById("qrBox").innerHTML = `<img src="${PAYMENT_QR_IMAGE}" alt="QR พร้อมเพย์">`;
+  }
+}
+
+function money(n){ return "฿" + n.toLocaleString("th-TH"); }
+
+function plainName(name){
+  return String(name).replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").trim();
+}
+
+function renderGrid(){
+  const grid = document.getElementById("productGrid");
+  grid.innerHTML = PRODUCTS.map(p => {
+    const flavorSelect = p.flavors ? `
+      <select id="flavor-${p.id}">
+        ${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join("")}
+      </select>` : "";
+    const desc = p.description ? `<p class="desc">${p.description}</p>` : "";
+    const media = p.image
+      ? `<img class="card-img" src="${p.image}" alt="${plainName(p.name)}">`
+      : p.emoji;
+    return `
+    <div class="card">
+      <div class="card-icon" style="background:${p.bg}">${media}</div>
+      <div class="card-title"><h3>${p.name}</h3></div>
+      ${desc}
+      <div class="price">${money(p.price)}</div>
+      ${flavorSelect}
+      <div class="stepper">
+        <button onclick="stepQty('${p.id}',-1)">−</button>
+        <div class="qty" id="qty-${p.id}">1</div>
+        <button onclick="stepQty('${p.id}',1)">+</button>
+      </div>
+      <button class="add-btn" id="addbtn-${p.id}" onclick="addToCart('${p.id}')">เพิ่มลงตะกร้า</button>
+    </div>`;
+  }).join("");
+}
+
+function stepQty(id, delta){
+  const el = document.getElementById(`qty-${id}`);
+  let v = parseInt(el.textContent) + delta;
+  if(v < 1) v = 1;
+  if(v > 20) v = 20;
+  el.textContent = v;
+}
+
+function addToCart(id){
+  const p = PRODUCTS.find(x=>x.id===id);
+  const qty = parseInt(document.getElementById(`qty-${id}`).textContent);
+  const flavorEl = document.getElementById(`flavor-${id}`);
+  const flavor = flavorEl ? flavorEl.value : null;
+  const key = id + "::" + (flavor || "default");
+
+  if(cart[key]){
+    cart[key].qty += qty;
+  } else {
+    cart[key] = { id, name:plainName(p.name), emoji:p.emoji, image:p.image || null, flavor, price:p.price, qty };
+  }
+  document.getElementById(`qty-${id}`).textContent = "1";
+
+  const btn = document.getElementById(`addbtn-${id}`);
+  btn.textContent = "เพิ่มแล้ว ✓";
+  btn.classList.add("added");
+  setTimeout(()=>{ btn.textContent="เพิ่มลงตะกร้า"; btn.classList.remove("added"); }, 900);
+
+  renderCartBar();
+  renderCartPanel();
+}
+
+function cartArray(){ return Object.entries(cart).map(([key,v])=>({key,...v})); }
+function cartTotal(){ return cartArray().reduce((s,i)=>s + i.price*i.qty, 0); }
+function cartCount(){ return cartArray().reduce((s,i)=>s + i.qty, 0); }
+
+function renderCartBar(){
+  const count = cartCount();
+  document.getElementById("headerCount").textContent = count;
+  const bar = document.getElementById("cartBar");
+  if(count > 0){
+    bar.classList.add("show");
+    document.getElementById("cartBarInfo").textContent = count + " ชิ้น";
+    document.getElementById("cartBarTotal").textContent = money(cartTotal());
+  } else {
+    bar.classList.remove("show");
+  }
+}
+
+function renderCartPanel(){
+  const list = document.getElementById("cartList");
+  const items = cartArray();
+  if(items.length === 0){
+    list.innerHTML = `<div class="empty-cart">ยังไม่มีขนมในตะกร้า<br>เลือกขนมที่ชอบแล้วกดเพิ่มลงตะกร้าได้เลย 🍪</div>`;
+  } else {
+    list.innerHTML = items.map(it => `
+      <div class="line-item">
+        <div class="thumb">${it.image ? `<img src="${it.image}" alt="">` : it.emoji}</div>
+        <div class="meta">
+          <div class="name">${it.name}</div>
+          ${it.flavor ? `<div class="flavor">${it.flavor}</div>` : ""}
+        </div>
+        <div class="mini-stepper">
+          <button onclick="changeCartQty('${it.key}',-1)">−</button>
+          <span>${it.qty}</span>
+          <button onclick="changeCartQty('${it.key}',1)">+</button>
+        </div>
+        <div class="price">${money(it.price*it.qty)}</div>
+      </div>
+    `).join("");
+  }
+
+  const foot = document.getElementById("cartFoot");
+  if(items.length === 0){
+    foot.innerHTML = "";
+  } else {
+    foot.innerHTML = `
+      <div class="subtotal-row"><span>ยอดรวม</span><span class="amount">${money(cartTotal())}</span></div>
+      <button class="primary-btn" onclick="openPanel('info')">ดำเนินการต่อ</button>
+    `;
+  }
+}
+
+function changeCartQty(key, delta){
+  cart[key].qty += delta;
+  if(cart[key].qty <= 0) delete cart[key];
+  renderCartBar();
+  renderCartPanel();
+}
+
+/* ---------- Panels ---------- */
+function openPanel(name){
+  closeAllPanels(false);
+  document.getElementById("overlay").classList.add("open");
+  document.getElementById("panel-" + name).classList.add("open");
+}
+function closeAllPanels(clearOverlay=true){
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("open"));
+  if(clearOverlay) document.getElementById("overlay").classList.remove("open");
+}
+
+/* ---------- Validation + review ---------- */
+function validateField(id, valid){
+  const wrap = document.getElementById(id);
+  wrap.classList.toggle("invalid", !valid);
+  return valid;
+}
+
+function goToReview(){
+  const name = document.getElementById("inputName").value.trim();
+  const phone = document.getElementById("inputPhone").value.trim();
+  const fb = document.getElementById("inputFb").value.trim();
+  const address = document.getElementById("inputAddress").value.trim();
+
+  const okName = validateField("f-name", name.length > 1);
+  const okPhone = validateField("f-phone", /^[0-9\-\s]{9,15}$/.test(phone));
+  const okFb = validateField("f-fb", fb.length > 1);
+  const okAddress = validateField("f-address", address.length > 5);
+
+  if(!(okName && okPhone && okFb && okAddress)) return;
+
+  document.getElementById("reviewItems").innerHTML = cartArray().map(it => `
+    <div class="row"><span>${it.name}${it.flavor ? " ("+it.flavor+")" : ""} ×${it.qty}</span><span>${money(it.price*it.qty)}</span></div>
+  `).join("");
+  document.getElementById("reviewTotal").textContent = money(cartTotal());
+  document.getElementById("reviewName").textContent = name;
+  document.getElementById("reviewPhone").textContent = phone;
+  document.getElementById("reviewFb").textContent = fb;
+  document.getElementById("reviewAddress").textContent = address;
+  document.getElementById("codFeeText").textContent = money(COD_FEE);
+
+  paymentMethod = null;
+  document.getElementById("pmTransfer").classList.remove("active");
+  document.getElementById("pmCod").classList.remove("active");
+  document.getElementById("transferSection").style.display = "none";
+  document.getElementById("codSection").style.display = "none";
+  renderTotals();
+  updateConfirmState();
+
+  openPanel("review");
+}
+
+function selectPaymentMethod(method){
+  paymentMethod = method;
+  document.getElementById("pmTransfer").classList.toggle("active", method === "transfer");
+  document.getElementById("pmCod").classList.toggle("active", method === "cod");
+  document.getElementById("transferSection").style.display = method === "transfer" ? "block" : "none";
+  document.getElementById("codSection").style.display = method === "cod" ? "block" : "none";
+  document.getElementById("payAmount").textContent = money(cartTotal());
+  renderTotals();
+  updateConfirmState();
+}
+
+function renderTotals(){
+  const feeRow = document.getElementById("feeRow");
+  if(paymentMethod === "cod"){
+    feeRow.style.display = "flex";
+    document.getElementById("feeAmount").textContent = money(COD_FEE);
+  } else {
+    feeRow.style.display = "none";
+  }
+  document.getElementById("grandTotalText").textContent = money(grandTotal());
+}
+
+/* ---------- Slip upload ---------- */
+function handleSlip(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith("image/")){
+    alert("กรุณาแนบไฟล์รูปภาพเท่านั้น");
+    event.target.value = "";
+    return;
+  }
+
+  const label = document.getElementById("slipUploadLabel");
+  label.textContent = "กำลังแนบไฟล์...";
+
+  compressImage(file, 1000, 0.72).then(({ base64, mimeType }) => {
+    slipData = { base64, mimeType, fileName: file.name };
+    document.getElementById("slipPreviewImg").src = `data:${mimeType};base64,${base64}`;
+    document.getElementById("slipFileName").textContent = file.name;
+    document.getElementById("slipPreview").classList.add("show");
+    label.textContent = "📎 เปลี่ยนสลิปการโอนเงิน";
+    updateConfirmState();
+  }).catch(() => {
+    alert("อ่านไฟล์รูปไม่สำเร็จ กรุณาลองใหม่");
+    label.textContent = "📎 แนบสลิปการโอนเงิน";
+  });
+}
+
+function removeSlip(){
+  slipData = null;
+  document.getElementById("slipInput").value = "";
+  document.getElementById("slipPreview").classList.remove("show");
+  document.getElementById("slipUploadLabel").textContent = "📎 แนบสลิปการโอนเงิน";
+  updateConfirmState();
+}
+
+function updateConfirmState(){
+  const btn = document.getElementById("confirmBtn");
+  if(paymentMethod === "cod"){
+    btn.disabled = false;
+    btn.textContent = "ยืนยันสั่งซื้อ (ปลายทาง)";
+  } else if(paymentMethod === "transfer" && slipData){
+    btn.disabled = false;
+    btn.textContent = "ยืนยันสั่งซื้อ";
+  } else if(paymentMethod === "transfer"){
+    btn.disabled = true;
+    btn.textContent = "แนบสลิปเพื่อยืนยันสั่งซื้อ";
+  } else {
+    btn.disabled = true;
+    btn.textContent = "เลือกวิธีชำระเงิน";
+  }
+}
+
+// ย่อรูปสลิปก่อนแปลงเป็น base64 เพื่อให้ไฟล์ไม่ใหญ่เกินไป
+function compressImage(file, maxWidth, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("image decode failed"));
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve({ base64: dataUrl.split(",")[1], mimeType: "image/jpeg" });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------- Submit to Google Sheets via Apps Script ---------- */
+function submitOrder(){
+  if(!paymentMethod){
+    alert("กรุณาเลือกวิธีชำระเงิน");
+    return;
+  }
+  if(paymentMethod === "transfer" && !slipData){
+    alert("กรุณาแนบสลิปการโอนเงินก่อนยืนยันสั่งซื้อ");
+    return;
+  }
+
+  const btn = document.getElementById("confirmBtn");
+  btn.disabled = true;
+  btn.textContent = "กำลังส่งออเดอร์...";
+
+  const payload = {
+    timestamp: new Date().toISOString(),
+    name: document.getElementById("inputName").value.trim(),
+    phone: document.getElementById("inputPhone").value.trim(),
+    fbName: document.getElementById("inputFb").value.trim(),
+    address: document.getElementById("inputAddress").value.trim(),
+    note: document.getElementById("inputNote").value.trim(),
+    items: cartArray().map(it => `${it.name}${it.flavor ? " ("+it.flavor+")" : ""} x${it.qty}`).join(", "),
+    paymentMethod: paymentMethod === "cod" ? "เก็บเงินปลายทาง" : "โอนเงิน",
+    itemsTotal: cartTotal(),
+    codFee: paymentMethod === "cod" ? COD_FEE : 0,
+    total: grandTotal(),
+    slipBase64: paymentMethod === "transfer" ? slipData.base64 : "",
+    slipMimeType: paymentMethod === "transfer" ? slipData.mimeType : "",
+    slipFileName: paymentMethod === "transfer" ? slipData.fileName : ""
+  };
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    mode: "no-cors", // Apps Script เว็บแอปไม่ส่ง CORS header กลับมา จึงอ่าน response ตรงๆไม่ได้
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  })
+  .then(()=>{ showSuccess(); })
+  .catch(()=>{
+    // no-cors ทำให้ fetch แทบไม่ reject จาก network ปกติ แต่กันไว้เผื่อเน็ตหลุด
+    updateConfirmState();
+    alert("ส่งออเดอร์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  });
+}
+
+function showSuccess(){
+  document.getElementById("orderRef").textContent = "รหัสอ้างอิง: " + Date.now().toString().slice(-8);
+  openPanel("success");
+  cart = {};
+  slipData = null;
+  paymentMethod = null;
+  renderCartBar();
+}
+
+renderGrid();
+renderCartBar();
+renderCartPanel();
+initPaymentInfo();
+</script>
+</body>
+</html>
