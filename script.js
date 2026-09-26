@@ -182,73 +182,52 @@ function getSlipFolder() {
    SAVE SLIP
 ================================================== */
 
-function saveSlip(
-  base64,
-  mimeType,
-  fileName,
-  orderId
-) {
+function saveSlip(base64, mimeType, fileName, orderId) {
 
   if (!base64) {
-    return "";
+    throw new Error("ไม่ได้รับข้อมูล slipBase64 จากเว็บไซต์");
   }
-
 
   try {
 
-    const bytes =
-      Utilities.base64Decode(base64);
+    console.log("Slip base64 length:", base64.length);
+    console.log("Mime type:", mimeType);
+    console.log("File name:", fileName);
+    console.log("Order ID:", orderId);
 
+    const folder = DriveApp.getFolderById(SLIP_FOLDER_ID);
 
-    const safeFileName =
-      orderId +
-      "_" +
-      (fileName || "slip.jpg");
+    console.log("Folder name:", folder.getName());
 
+    const bytes = Utilities.base64Decode(base64);
 
-    const blob =
-      Utilities.newBlob(
-        bytes,
-        mimeType || "image/jpeg",
-        safeFileName
-      );
+    console.log("Decoded bytes:", bytes.length);
 
-
-    const folder =
-      getSlipFolder();
-
-
-    const file =
-      folder.createFile(blob);
-
-
-    /*
-      ทำให้กด link จาก Sheet แล้วดูสลิปได้
-    */
-
-    file.setSharing(
-      DriveApp.Access.ANYONE_WITH_LINK,
-      DriveApp.Permission.VIEW
+    const blob = Utilities.newBlob(
+      bytes,
+      mimeType || "image/jpeg",
+      (orderId || Date.now()) + "_" + (fileName || "slip.jpg")
     );
 
+    const file = folder.createFile(blob);
 
-    return file.getUrl();
+    console.log("Created file:", file.getId());
 
+    // ยังไม่ setSharing ตอนนี้
+    // เอาให้ upload สำเร็จก่อน
+
+    return {
+      id: file.getId(),
+      url: file.getUrl()
+    };
 
   } catch (error) {
 
-    console.error(
-      "SAVE SLIP ERROR:",
-      error
-    );
+    console.error("SAVE SLIP ERROR: " + error.message);
 
-    return "";
-
+    throw error;
   }
-
 }
-
-
 /* ==================================================
    RECEIVE ORDER FROM WEBSITE
 ================================================== */
@@ -307,37 +286,28 @@ function doPost(e) {
        4. Upload Slip
     ------------------------------ */
 
-    let slipUrl = "";
+    let slipFile = null;
+let slipCell = "";
 
-    let slipCell = "";
+if (data.slipBase64) {
 
+  try {
 
-    if (data.slipBase64) {
+    slipFile = saveSlip(
+      data.slipBase64,
+      data.slipMimeType,
+      data.slipFileName,
+      orderId
+    );
 
-      slipUrl =
-        saveSlip(
-          data.slipBase64,
-          data.slipMimeType,
-          data.slipFileName,
-          orderId
-        );
+    slipCell = "อัปโหลดสำเร็จ: " + slipFile.id;
 
+  } catch (error) {
 
-      if (slipUrl) {
+    slipCell = "ERROR: " + error.message;
 
-        slipCell =
-          '=HYPERLINK("' +
-          slipUrl +
-          '","ดูสลิป")';
-
-      } else {
-
-        slipCell =
-          "อัปโหลดสลิปไม่สำเร็จ";
-
-      }
-
-    }
+  }
+}
 
 
     /* ------------------------------
