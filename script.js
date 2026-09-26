@@ -185,36 +185,28 @@ function getSlipFolder() {
 function saveSlip(base64, mimeType, fileName, orderId) {
 
   if (!base64) {
-    throw new Error("ไม่ได้รับข้อมูล slipBase64 จากเว็บไซต์");
+    return null;
   }
 
   try {
 
-    console.log("Slip base64 length:", base64.length);
-    console.log("Mime type:", mimeType);
-    console.log("File name:", fileName);
-    console.log("Order ID:", orderId);
+    const bytes =
+      Utilities.base64Decode(base64);
 
-    const folder = DriveApp.getFolderById(SLIP_FOLDER_ID);
+    const blob =
+      Utilities.newBlob(
+        bytes,
+        mimeType || "image/jpeg",
+        (orderId || Date.now()) +
+        "_" +
+        (fileName || "slip.jpg")
+      );
 
-    console.log("Folder name:", folder.getName());
+    const folder =
+      DriveApp.getFolderById(SLIP_FOLDER_ID);
 
-    const bytes = Utilities.base64Decode(base64);
-
-    console.log("Decoded bytes:", bytes.length);
-
-    const blob = Utilities.newBlob(
-      bytes,
-      mimeType || "image/jpeg",
-      (orderId || Date.now()) + "_" + (fileName || "slip.jpg")
-    );
-
-    const file = folder.createFile(blob);
-
-    console.log("Created file:", file.getId());
-
-    // ยังไม่ setSharing ตอนนี้
-    // เอาให้ upload สำเร็จก่อน
+    const file =
+      folder.createFile(blob);
 
     return {
       id: file.getId(),
@@ -223,7 +215,7 @@ function saveSlip(base64, mimeType, fileName, orderId) {
 
   } catch (error) {
 
-    console.error("SAVE SLIP ERROR: " + error.message);
+    console.error("SAVE SLIP ERROR:", error);
 
     throw error;
   }
@@ -286,26 +278,33 @@ function doPost(e) {
        4. Upload Slip
     ------------------------------ */
 
-    let slipFile = null;
-let slipCell = "";
+    let slipCell = "";
 
 if (data.slipBase64) {
 
   try {
 
-    slipFile = saveSlip(
+    const slipFile = saveSlip(
       data.slipBase64,
       data.slipMimeType,
       data.slipFileName,
       orderId
     );
 
-    slipCell = "อัปโหลดสำเร็จ: " + slipFile.id;
+    if (slipFile && slipFile.url) {
+
+      slipCell =
+        '=HYPERLINK("' +
+        slipFile.url +
+        '","ดูสลิป")';
+
+    }
 
   } catch (error) {
 
-    slipCell = "ERROR: " + error.message;
+    console.error("SLIP ERROR:", error);
 
+    slipCell = "สลิปอยู่ใน Drive แต่สร้างลิงก์ไม่สำเร็จ";
   }
 }
 
@@ -315,32 +314,18 @@ if (data.slipBase64) {
     ------------------------------ */
 
     sheet.appendRow([
-
-      data.timestamp ||
-        new Date().toISOString(),
-
+      data.timestamp || new Date().toISOString(),
       orderId,
-
       data.name || "",
-
       data.phone || "",
-
       data.fbName || "",
-
       data.address || "",
-
       data.items || "",
-
       data.paymentMethod || "",
-
       Number(data.codFee) || 0,
-
       Number(data.total) || 0,
-
       data.note || "",
-
       slipCell
-
     ]);
 
 
